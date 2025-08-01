@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,86 +12,81 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { History, Copy, RefreshCw, Trash2, Clock, Sparkles } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { History, Copy, RotateCcw, Trash2, Calendar } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 
-interface HistoryItem {
+interface DialogueMessage {
+  speaker: string
+  text: string
+}
+
+interface GeneratedDialogue {
   id: string
-  description: string
-  dialogue: string
-  style: string
+  messages: DialogueMessage[]
   timestamp: Date
+  style: string
+  description: string
 }
 
-interface DialogueHistoryDialogProps {
-  onRegenerateFromHistory: (item: HistoryItem) => void
+interface DialogueHistoryProps {
+  dialogueHistory: GeneratedDialogue[]
+  setDialogueHistory: (history: GeneratedDialogue[]) => void
+  onRegenerateDialogue: (description: string) => void
 }
 
-export function DialogueHistoryDialog({ onRegenerateFromHistory }: DialogueHistoryDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [history, setHistory] = useState<HistoryItem[]>([])
+export function DialogueHistoryDialog({
+  dialogueHistory,
+  setDialogueHistory,
+  onRegenerateDialogue,
+}: DialogueHistoryProps) {
+  const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    if (open) {
-      loadHistory()
-    }
-  }, [open])
-
-  const loadHistory = () => {
-    const savedHistory = localStorage.getItem("dialogue-history")
-    if (savedHistory) {
-      const parsedHistory = JSON.parse(savedHistory).map((item: any) => ({
-        ...item,
-        timestamp: new Date(item.timestamp),
-      }))
-      setHistory(parsedHistory)
-    }
-  }
-
-  const copyDialogue = (item: HistoryItem) => {
-    navigator.clipboard.writeText(`${item.description}\n\n${item.dialogue}`)
+  const handleCopyDialogue = (dialogue: GeneratedDialogue) => {
+    const dialogueText = dialogue.messages.map((msg) => `${msg.speaker}: ${msg.text}`).join("\n")
+    navigator.clipboard.writeText(dialogueText)
     toast({
       title: "Copied to clipboard! 📋✨",
-      description: "This legendary dialogue is ready to share! 🚀",
+      description: "Dialogue ready to share! 🚀",
     })
   }
 
-  const regenerateFromHistory = (item: HistoryItem) => {
-    onRegenerateFromHistory(item)
-    setOpen(false)
+  const handleRegenerateDialogue = (dialogue: GeneratedDialogue) => {
+    onRegenerateDialogue(dialogue.description)
+    setIsOpen(false)
     toast({
-      title: "Regenerating from history! 🔄✨",
-      description: "Using your previous situation for new comedy gold! 💎",
+      title: "Regenerating dialogue! 🔄✨",
+      description: "Creating a new version of this situation! 🎭",
     })
   }
 
-  const deleteHistoryItem = (id: string) => {
-    const updatedHistory = history.filter((item) => item.id !== id)
-    setHistory(updatedHistory)
-    localStorage.setItem("dialogue-history", JSON.stringify(updatedHistory))
+  const handleDeleteDialogue = (id: string) => {
+    setDialogueHistory(dialogueHistory.filter((d) => d.id !== id))
     toast({
       title: "Dialogue deleted! 🗑️",
-      description: "Removed from your comedy archive! ✨",
+      description: "Removed from your history! ✨",
     })
   }
 
-  const clearAllHistory = () => {
-    setHistory([])
-    localStorage.removeItem("dialogue-history")
+  const handleClearHistory = () => {
+    setDialogueHistory([])
     toast({
       title: "History cleared! 🧹✨",
-      description: "Fresh start for your comedy journey! 🚀",
+      description: "Fresh start for new comedy gold! 🎭",
     })
   }
 
   const formatTimestamp = (timestamp: Date) => {
     const now = new Date()
-    const diffInMinutes = Math.floor((now.getTime() - timestamp.getTime()) / (1000 * 60))
+    const diff = now.getTime() - timestamp.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
 
-    if (diffInMinutes < 1) return "Just now ⚡"
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago 🕐`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago 🕒`
-    return `${Math.floor(diffInMinutes / 1440)}d ago 📅`
+    if (minutes < 1) return "Just now"
+    if (minutes < 60) return `${minutes}m ago`
+    if (hours < 24) return `${hours}h ago`
+    return `${days}d ago`
   }
 
   const getStyleEmoji = (style: string) => {
@@ -106,131 +101,145 @@ export function DialogueHistoryDialog({ onRegenerateFromHistory }: DialogueHisto
     return styleEmojis[style] || "🎭"
   }
 
+  const todayCount = dialogueHistory.filter((d) => {
+    const today = new Date()
+    const dialogueDate = new Date(d.timestamp)
+    return dialogueDate.toDateString() === today.toDateString()
+  }).length
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          className="bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 text-white border-0 font-bold px-6 py-3 rounded-2xl shadow-lg transform hover:scale-105 transition-all duration-200"
+          className="bg-gradient-to-r from-green-200 to-blue-200 hover:from-green-300 hover:to-blue-300 border-2 border-green-300 text-gray-800 font-bold shadow-lg hover-scale"
         >
-          <History className="w-5 h-5 mr-2" />
+          <History className="w-4 h-4 mr-2" />
           History 📚✨
+          {dialogueHistory.length > 0 && (
+            <Badge className="ml-2 bg-purple-500 text-white">{dialogueHistory.length}</Badge>
+          )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[700px] max-h-[80vh] bg-gradient-to-br from-blue-50 to-green-50 border-4 border-blue-300 rounded-3xl">
+      <DialogContent className="max-w-2xl max-h-[80vh] backdrop-blur-glass border-2 border-purple-200">
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold text-center text-blue-800 flex items-center justify-center gap-3">
-            <History className="text-blue-600" />
-            Your Comedy Archive! 📚✨
+          <DialogTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+            <History className="text-purple-500" />
+            Your Comedy Archive 📚✨
           </DialogTitle>
-          <DialogDescription className="text-center text-lg text-gray-700 font-medium">
-            Revisit your legendary dialogues and create new masterpieces! 🎭💎
+          <DialogDescription className="text-center text-gray-600">
+            All your hilarious dialogues in one place! 🎭💫
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 p-6">
-          {/* Header Stats */}
-          <div className="flex justify-between items-center p-4 bg-white rounded-2xl border-2 border-blue-200 shadow-sm">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-800">{history.length}</div>
-              <div className="text-sm text-gray-600">Total Dialogues 💬</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-800">
-                {history.filter((item) => new Date().getTime() - item.timestamp.getTime() < 24 * 60 * 60 * 1000).length}
-              </div>
-              <div className="text-sm text-gray-600">Today 🔥</div>
-            </div>
-            <Button
-              onClick={clearAllHistory}
-              variant="outline"
-              size="sm"
-              className="hover:bg-red-50 hover:border-red-300 transition-all duration-200 bg-transparent"
-              disabled={history.length === 0}
-            >
-              <Trash2 className="w-4 h-4 mr-1" />
-              Clear All 🧹
-            </Button>
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="flex justify-center gap-4">
+            <Badge className="bg-purple-500 text-white px-3 py-1">📊 Total: {dialogueHistory.length}</Badge>
+            <Badge className="bg-green-500 text-white px-3 py-1">📅 Today: {todayCount}</Badge>
           </div>
 
-          {/* History List */}
-          <ScrollArea className="h-[400px] w-full">
-            {history.length === 0 ? (
-              <div className="text-center py-12 space-y-4">
-                <div className="text-6xl">📝</div>
-                <h3 className="text-xl font-bold text-gray-700">No dialogues yet! 🎭</h3>
-                <p className="text-gray-600">Generate some comedy gold to see it here! ✨</p>
+          {dialogueHistory.length === 0 ? (
+            <div className="text-center py-12 space-y-4">
+              <div className="text-6xl">🎭</div>
+              <h3 className="text-xl font-semibold text-gray-600">No dialogues yet!</h3>
+              <p className="text-gray-500">Generate your first hilarious dialogue to get started! ✨</p>
+            </div>
+          ) : (
+            <>
+              {/* Clear History Button */}
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleClearHistory}
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:bg-red-50 border-red-200 bg-transparent"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Clear All History 🧹
+                </Button>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {history.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 bg-white rounded-2xl border-2 border-gray-200 shadow-sm hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-blue-600 text-white px-2 py-1">
-                          {getStyleEmoji(item.style)} {item.style}
-                        </Badge>
-                        <div className="flex items-center gap-1 text-sm text-gray-500">
-                          <Clock className="w-3 h-3" />
-                          {formatTimestamp(item.timestamp)}
+
+              {/* History List */}
+              <ScrollArea className="h-[400px] w-full">
+                <div className="space-y-4 pr-4">
+                  {dialogueHistory.map((dialogue, index) => (
+                    <div
+                      key={dialogue.id}
+                      className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border-2 border-purple-200 hover:shadow-lg transition-all duration-200"
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-500 text-white">
+                            {getStyleEmoji(dialogue.style)} {dialogue.style}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Calendar className="w-3 h-3" />
+                            {formatTimestamp(new Date(dialogue.timestamp))}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            onClick={() => handleCopyDialogue(dialogue)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 hover:bg-blue-100"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleRegenerateDialogue(dialogue)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 hover:bg-green-100"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteDialogue(dialogue.id)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 hover:bg-red-100 text-red-600"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => copyDialogue(item)}
-                          size="sm"
-                          variant="outline"
-                          className="hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          onClick={() => regenerateFromHistory(item)}
-                          size="sm"
-                          variant="outline"
-                          className="hover:bg-green-50 hover:border-green-300 transition-all duration-200"
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          onClick={() => deleteHistoryItem(item.id)}
-                          size="sm"
-                          variant="outline"
-                          className="hover:bg-red-50 hover:border-red-300 transition-all duration-200"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <div className="font-medium text-gray-800">
-                        <span className="text-purple-600 font-bold">🎭 Situation:</span> {item.description}
-                      </div>
-                      <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-xl border">
-                        <div className="font-medium mb-1">Generated Dialogue: 💬</div>
-                        <div className="whitespace-pre-wrap">{item.dialogue.substring(0, 150)}...</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
+                      {/* Description */}
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 bg-white dark:bg-gray-800 p-2 rounded border">
+                        🎯 {dialogue.description}
+                      </p>
 
-          {/* Footer Actions */}
-          <div className="flex justify-center gap-3">
-            <Button
-              onClick={() => setOpen(false)}
-              className="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-8 py-3 rounded-2xl shadow-lg transform hover:scale-105 transition-all duration-200"
-            >
-              <Sparkles className="w-5 h-5 mr-2" />
-              Close Archive ✨
-            </Button>
-          </div>
+                      {/* Messages Preview */}
+                      <div className="space-y-2">
+                        {dialogue.messages.slice(0, 2).map((message, msgIndex) => (
+                          <div
+                            key={msgIndex}
+                            className={`text-xs p-2 rounded ${
+                              message.speaker === "Person A"
+                                ? "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
+                            }`}
+                          >
+                            <span className="font-medium">{message.speaker}:</span> {message.text}
+                          </div>
+                        ))}
+                        {dialogue.messages.length > 2 && (
+                          <div className="text-xs text-gray-500 text-center">
+                            ... and {dialogue.messages.length - 2} more messages
+                          </div>
+                        )}
+                      </div>
+
+                      {index < dialogueHistory.length - 1 && <Separator className="mt-4" />}
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
